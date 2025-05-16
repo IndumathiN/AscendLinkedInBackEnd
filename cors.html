@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Gemini Q&A</title>
+</head>
+<body>
+  <h1>Ask Gemini</h1>
+  <input type="text" id="question" placeholder="Ask a question..." size="50" />
+  <button onclick="askGemini()">Send</button>
+  <p id="response"></p>
+
+  <script>
+    async function askGemini() {
+      const question = document.getElementById("question").value;
+      const responseEl = document.getElementById("response");
+      responseEl.textContent = "Thinking...";
+
+      try {
+        const res = await fetch("http://localhost:8000/ask", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ question }),
+        });
+
+        const data = await res.json();
+        responseEl.textContent = data.response || data.error;
+      } catch (err) {
+        responseEl.textContent = "Error: " + err.message;
+      }
+    }
+  </script>
+</body>
+</html>
