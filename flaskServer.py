@@ -1,3 +1,4 @@
+import json
 import requests
 from flask import Flask, request, jsonify,session
 from flask_cors import CORS
@@ -6,8 +7,10 @@ from langchain_google_genai import ChatGoogleGenerativeAI
 from browser_use import Agent, Browser, BrowserConfig
 from dotenv import load_dotenv
 from resume_extraction import extract_resume_data
+from services.job_search import job_search
 import os
 from io import BytesIO
+import sys
 
 # Load environment variables
 load_dotenv(dotenv_path="./config/.env")
@@ -26,7 +29,9 @@ api_key = os.getenv("GEMINI_API_KEY")
 llm = ChatGoogleGenerativeAI(model='models/gemini-1.5-flash', api_key=api_key)
 
 # Tasks
-loginToLinkedIn = "Go to LinkedIn website. Do login with the x_username and x_password."
+loginToLinkedIn = """Go to LinkedIn website. Do login with the x_username and x_password.
+                     If login is successful, say: 'LOGIN_SUCCESS'.
+                     If login fails or any error message is shown, say: 'LOGIN_FAILED'."""
 searchJob = "Search for Data Analyst jobs in the United States."
 chooseFilter = "Choose Date posted as the last 24 hours."
 
@@ -65,45 +70,28 @@ async def run_linkedin_bot(email: str, password: str, llm):
         await agentLogin.run()
         await agentSearchJob.run()
         await agentChooseFilter.run()
-
-        # page = context.pages[0]  # Assuming job listings are on the same tab
-        # await page.wait_for_selector('.jobs-search-results__list-item')  # wait for job list
-
-        # job_elements = await page.query_selector_all('.jobs-search-results__list-item')  # top 10 results
-        # jobs = []
-
-        # for job in job_elements[:10]:  # Limit to 10
-        #     title_el = await job.query_selector('h3')  # title selector
-        #     company_el = await job.query_selector('.job-search-card__subtitle')
-        #     time_el = await job.query_selector('time')
-        #     link_el = await job.query_selector('a')
-
-        #     job_data = {
-        #         "title": await title_el.inner_text() if title_el else "",
-        #         "company": await company_el.inner_text() if company_el else "",
-        #         "posted": await time_el.get_attribute('datetime') if time_el else "",
-        #         "link": await link_el.get_attribute('href') if link_el else "",
-        #     }
-        #     jobs.append(job_data)
-
         await browser.close()
         return "success"
 
-@app.route('/run-bot', methods=['POST'])
+@app.route('/jobSearch', methods=['POST'])
 def handle_run_bot():
     data = request.get_json()
     # email = data.get("email")
     # password = data.get("password")
-    print(data)
-    email=temp_credentials.get("email")
-    password=temp_credentials.get("password")
+    #print(data)
+    
+    with open("temp_credentials.json", "r") as f:
+        creds = json.load(f)
+    email=creds.get("email")
+    password=creds.get("password")
 
-    #print("Session email ",email ," passworrd *****",password)
+    print("Session email ",email ," passworrd *****",password)
     if not email or not password:
         return jsonify({"error": "Missing email or password"}), 400
 
     try:
-        result = asyncio.run(run_linkedin_bot(email, password, llm))
+        #result = asyncio.run(run_linkedin_bot(email, password, llm))
+        result = asyncio.run(job_search(data))
         return jsonify({"message": "Success"})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
@@ -146,13 +134,22 @@ def savelinkedInCredentials():
     if not email or not password:
         return jsonify({"error": "Missing email or password"}), 400
 
-    # Save credentials in session
-    # session["email"] = email
-    # session["password"] = password
+    credentials = {
+    "email": email,
+    "password": password
+}
+    credentials_file = "temp_credentials.json"
+    if not os.path.exists(credentials_file):
+    # Write the credentials to the file
+        with open(credentials_file, "w") as f:
+            json.dump(credentials, f, indent=4)
+        print("✅ File created and credentials saved.")
+    else:
+        # Optional: overwrite or update existing file
+        with open(credentials_file, "w") as f:
+            json.dump(credentials, f, indent=4)
+        print("✅ File already existed. Credentials updated.")
 
-    temp_credentials["email"] = email
-    temp_credentials["password"] = password
-    # print("********* email session saved is ",session.get("email"), session.get("password"))
     return jsonify({"message": "Success"}), 200
 
 if __name__ == '__main__':

@@ -4,6 +4,7 @@ Goal: Searches for job listings after linkedIn login, saves them to a CSV file.
 @dev You need to add GEMINI_API_KEY to your environment variables.
 Also you have to install couple of python dependencies like langchain, PyPDF2, etc.
 """
+import json
 import nest_asyncio
 import asyncio
 import csv
@@ -26,7 +27,7 @@ from browser_use.browser.context import BrowserContext
 logger = logging.getLogger(__name__)
 nest_asyncio.apply()
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-load_dotenv(dotenv_path="./config/.env")
+load_dotenv(dotenv_path="./config/.env", override=True)
 api_key = os.getenv("GEMINI_API_KEY")
 
 # userInput = Path.cwd() / './config/job_search_config.yaml'
@@ -46,9 +47,14 @@ config = BrowserConfig(
 
 # Define sensitive data
 # The model will only see the keys (x_name, x_password) but never the actual values
+
+
+
+with open("temp_credentials.json", "r") as f:
+    creds = json.load(f)
 sensitive_data = {
-    'x_username': os.getenv("LINKEDIN_USER"),
-    'x_password': os.getenv("LINKEDIN_PASS")
+    'x_username': creds.get("email"),
+    'x_password': creds.get("password")
 }
 loginToLinkedIn = "Go to LinkedIn website. "  \
 "Do login with the x_username and x_password. "
@@ -72,9 +78,16 @@ Do not return anything else.
 selectSkills = "Read the skills, location from the yml file {userInput} "
 searchJob = "Search for jobs in the United States for java development skills'#{selectedSkills}." 
 chooseFilter = "Choose Date posted as the past 24 hours." 
-saveSearchedJobs = "For each job found, call the action 'Save jobs to file."# - with a score how well it fits to my profile' with the job title, company, link, salary, location, and a fit score between 0.0 and 1.0.\n"
-"Make sure you call the save action for each job to store it in the CSV file."
-
+# saveSearchedJobs = "For each job found, call the action 'Save jobs to file."# - with a score how well it fits to my profile' with the job title, company, link, salary, location, and a fit score between 0.0 and 1.0.\n"
+# "Make sure you call the save action for each job to store it in the CSV file."
+saveSearchedJobs = (
+    "For each job found, call the action 'Save jobs to file - with a score how well it fits to my profile' "
+    "with the job title, company, link, salary, location, and a fit score between 0.0 and 1.0. "
+    "Make sure you call the save action for each job to store it in the CSV file."
+)
+print(sensitive_data)
+print(searchJob)
+#sys.exit("Stop*************")
 class Job(BaseModel):
 	title: str
 	link: str
@@ -83,6 +96,7 @@ class Job(BaseModel):
 	location: Optional[str] = None
 	salary: Optional[str] = None
 
+#this function automatically gets triggered with the saveSearchedJobs prompt as the wordings match the controller action
 @controller.action('Save jobs to file - with a score how well it fits to my profile', param_model=Job)
 def save_jobs(job: Job):
 	print("📝 save_jobs action was triggered.")
@@ -169,27 +183,27 @@ async def main():
         )
         result_login=await agentLogin.run()
         print("Login attempt completed.")
+        await agentSearchJob.run()
+        await agentSaveJobsToCSV.run()
 
-        
+        # result_check = await agentCheckLogin.run()
 
-        result_check = await agentCheckLogin.run()
+        # try:
+        #     print(result_check)
+        #     final_action = result_check.all_results[-1]
+        #     final_content = getattr(final_action, "extracted_content", "") or ""
+        #     print("🔍 Final content:", final_content)
 
-        try:
-            print(result_check)
-            final_action = result_check.all_results[-1]
-            final_content = getattr(final_action, "extracted_content", "") or ""
-            print("🔍 Final content:", final_content)
+        #     if "LOGIN_FAILED" in final_content.upper():
+        #         raise ValueError("❌ LinkedIn login failed. Check credentials.")
+        #     elif "LOGIN_SUCCESS" in final_content.upper():
+        #         print("✅ Successfully logged in to LinkedIn.")
+        #     else:
+        #         print("⚠️ Login result unclear:", final_content)
 
-            if "LOGIN_FAILED" in final_content.upper():
-                raise ValueError("❌ LinkedIn login failed. Check credentials.")
-            elif "LOGIN_SUCCESS" in final_content.upper():
-                print("✅ Successfully logged in to LinkedIn.")
-            else:
-                print("⚠️ Login result unclear:", final_content)
-
-        except Exception as e:
-            print("❗ Error interpreting login result:", e)
-            raise
+        # except Exception as e:
+        #     print("❗ Error interpreting login result:", e)
+        #     raise
 # Safety check: ensure it's an AgentHistoryList
         
 
