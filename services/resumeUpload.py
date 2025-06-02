@@ -42,7 +42,7 @@ def extract_resume_data(pdf_file):
                     # Prompt for structured data extraction
                     extraction_prompt = f"""
                     You are a resume parsing assistant. Extract the following information from this resume:
-                    1. Full name
+                    1. First name and Last name
                     2. Location/address
                     3. Contact information (email, phone)
                     4. Skills (list all technical and soft skills)
@@ -56,7 +56,8 @@ def extract_resume_data(pdf_file):
                     Additionally, identify any missing or unclear information that might be needed for job applications.
                     Return the data in a JSON format with the following structure:
                     {{
-                        "name": "Full Name",
+                        "firstName": "First Name",
+                        "lastName": "Last Name",
                         "location": "City, State",
                         "contact": {{
                         "email": "email@example.com",

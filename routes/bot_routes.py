@@ -1,7 +1,9 @@
 import json
+import sqlite3
 import sys
 from flask import Blueprint, request, jsonify
 from routes.jobSearch import jobSearch
+from securityKey.encryptDecrypt import decrypt_text, encrypt_text
 from services.checkLogin import linkedinLogin
 from services.linkedin_bot import run_linkedin_bot
 import asyncio
@@ -11,6 +13,7 @@ from dotenv import load_dotenv
 
 load_dotenv(dotenv_path="./config/.env")
 
+DB_PATH=os.getenv("SQLITE_DB_PATH")
 bot_bp = Blueprint('bot', __name__)
 llm = ChatGoogleGenerativeAI(model='models/gemini-1.5-flash', api_key=os.getenv("GEMINI_API_KEY"))
 
@@ -50,7 +53,7 @@ def handle_run_bot():
         return jsonify({"error": str(e)}), 500
 
 #Working with linkedIn login credential check by logging in the website & checking & storing in temp_credentials.json
-@bot_bp.route("/saveCredentials", methods=["POST"])
+@bot_bp.route("/saveCredential", methods=["POST"])
 def savelinkedInCredentials():
     data = request.get_json()
     email = data.get("email")
@@ -86,3 +89,34 @@ def savelinkedInCredentials():
         print("❌ Error during LinkedIn login:", str(e))
         return jsonify({"error": f"Exception during login: {str(e)}"}), 500
     #return jsonify({"message": "Success"}), 200
+
+@bot_bp.route("/saveCredentials", methods=["POST"])
+def saveCredentials():
+    data = request.get_json()
+    email = data.get("email")
+    password = encrypt_text(data.get("password"))
+    print(password)
+    if not email or not password:
+        return jsonify({"error": "Missing email or password"}), 400
+
+    try:
+        
+        # Save to SQLite instead of file
+        conn = sqlite3.connect(DB_PATH)
+        cursor = conn.cursor()
+
+        cursor.execute("""
+            INSERT INTO credentials (email, password) 
+            VALUES (?, ?)
+            ON CONFLICT(email) DO UPDATE SET password=excluded.password
+        """, (email, password))
+
+        conn.commit()
+        conn.close()
+        print(decrypt_text(password))
+        print("✅ Credentials saved to DB.")
+        return jsonify({"message": "Success"}), 200
+
+    except Exception as e:
+        print("❌ Error during LinkedIn login:", str(e))
+        return jsonify({"error": f"Exception during login: {str(e)}"}), 500

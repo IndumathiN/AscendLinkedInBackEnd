@@ -1,4 +1,5 @@
 import json
+import uuid
 import requests
 from flask import Flask, request, jsonify,session
 from flask_cors import CORS
@@ -109,6 +110,7 @@ def upload_resume():
         if resume.filename == '':
             return jsonify({'error': 'Invalid file name'}), 400
 
+        
         # Convert uploaded file to BytesIO
         pdf_bytes = BytesIO(resume.read())
         pdf_bytes.name = resume.filename  # Set a name attribute like an uploaded file

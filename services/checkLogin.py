@@ -19,7 +19,14 @@ async def linkedinLogin(email: str, password: str):
 
     # Instantiate the browser (do not call start())
     browser = Browser(BrowserConfig())
-    
+
+    # Use persistent session profile
+    #Save cookies & storage after login.
+    #Reuse the same data for all future tasks with that profile.
+    # browser_config = BrowserConfig(profile_name="linkedin_user1")
+    # browser = Browser(browser_config)
+    # #config = BrowserConfig(profile_name="linkedin_user1")
+    # print("Path is ************",browser.profile_path)
     # Sensitive credentials
     sensitive_data = {
         "x_username": email,
@@ -33,7 +40,8 @@ async def linkedinLogin(email: str, password: str):
         If login is successful, say: 'LOGIN_SUCCESS'.
         If login fails or any error message is shown, say: 'LOGIN_FAILED'.
     """
-
+    
+    
     # Create and run the agent
     agent = Agent(task=login_task, llm=model, browser=browser, sensitive_data=sensitive_data)
     page = await agent.run()

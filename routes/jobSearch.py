@@ -2,7 +2,7 @@
 import sys
 from flask import Blueprint, jsonify, request
 import asyncio
-from services.job_search import job_search
+from services.job_search import job_search, run_agent_task
 
 jobSearch_bp = Blueprint('jobSearch', __name__)
 
@@ -18,3 +18,19 @@ def jobSearch():
         return jsonify(result)
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 500
+
+@jobSearch_bp.route("/jobSearchWorking", methods=["POST"])
+def search_jobs():
+    query = request.get_json()
+    print(query)
+    location=query['payload']['position']
+    prompt = f"""
+    Go to https://www.linkedin.com/jobs.
+    Search for {location}.
+    Return job titles and companies from the first page.
+    """
+
+    result = asyncio.run(run_agent_task(prompt))
+    return jsonify({"jobs": result})
+
+
